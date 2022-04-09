@@ -1,7 +1,11 @@
 module Main exposing (main)
 
+import Browser
 import Html exposing (Html)
 import Html.Attributes
+import Html.Events
+import Json.Decode as Decode exposing (Decoder)
+import Json.Decode.Extra
 import List.NonEmpty exposing (NonEmpty)
 
 
@@ -138,25 +142,44 @@ buildQueue =
         ]
 
 
-results : AgentPool
-results =
-    processQueue buildQueue (agentPool 2)
+results : Int -> AgentPool
+results additionalAgents =
+    processQueue buildQueue (agentPool additionalAgents)
 
 
-main : Html a
+main : Program Flags Model Msg
 main =
-    view initialModel
+    Browser.sandbox
+        { init = initialModel
+        , view = view
+        , update = update
+        }
 
 
-view : Model -> Html a
+type alias Flags =
+    ()
+
+
+type Msg
+    = AgentCountChanged Int
+
+
+update : Msg -> Model -> Model
+update msg model =
+    case msg of
+        AgentCountChanged newAdditionalAgents ->
+            { model | additionalAgents = newAdditionalAgents }
+
+
+view : Model -> Html Msg
 view model =
     Html.section []
         [ controls model.additionalAgents
-        , dataList
+        , dataList model.additionalAgents
         ]
 
 
-controls : Int -> Html a
+controls : Int -> Html Msg
 controls additionalAgents =
     Html.fieldset []
         [ Html.legend [] [ Html.text "Agents" ]
@@ -165,16 +188,28 @@ controls additionalAgents =
             [ Html.Attributes.type_ "range"
             , Html.Attributes.min "0"
             , Html.Attributes.value (String.fromInt additionalAgents)
+            , onIntInput AgentCountChanged
             ]
             []
         ]
 
 
-dataList : Html a
-dataList =
+onIntInput : (Int -> msg) -> Html.Attribute msg
+onIntInput toMsg =
+    Html.Events.on "input" (Decode.map toMsg intTarget)
+
+
+intTarget : Decoder Int
+intTarget =
+    Html.Events.targetValue
+        |> Decode.andThen (Json.Decode.Extra.fromMaybe "not an int" << String.toInt)
+
+
+dataList : Int -> Html a
+dataList additionalAgents =
     let
         (AgentPool pool) =
-            results
+            results additionalAgents
 
         agents =
             List.NonEmpty.toList pool
