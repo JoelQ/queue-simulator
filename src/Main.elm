@@ -97,24 +97,32 @@ type Queue
 -- PROGRAM
 
 
+type alias Model =
+    { additionalAgents : Int }
+
+
+initialModel : Model
+initialModel =
+    { additionalAgents = 1 }
+
+
 firstAgent : Agent
 firstAgent =
     Agent (AgentId 1) []
 
 
-additionalAgents : Int -> List Agent
-additionalAgents n =
+buildAgents : Int -> List Agent
+buildAgents n =
     List.range 1 n
         |> List.map (\id -> Agent (AgentId id) [])
 
 
-agentPool : AgentPool
-agentPool =
+agentPool : Int -> AgentPool
+agentPool additionalAgents =
     AgentPool
         (List.NonEmpty.fromCons
-            (Agent (AgentId 1) [])
-            [ Agent (AgentId 2) []
-            ]
+            firstAgent
+            (buildAgents additionalAgents)
         )
 
 
@@ -132,11 +140,38 @@ buildQueue =
 
 results : AgentPool
 results =
-    processQueue buildQueue agentPool
+    processQueue buildQueue (agentPool 2)
 
 
 main : Html a
 main =
+    view initialModel
+
+
+view : Model -> Html a
+view model =
+    Html.section []
+        [ controls model.additionalAgents
+        , dataList
+        ]
+
+
+controls : Int -> Html a
+controls additionalAgents =
+    Html.fieldset []
+        [ Html.legend [] [ Html.text "Agents" ]
+        , Html.span [] [ Html.text <| String.fromInt (additionalAgents + 1) ]
+        , Html.input
+            [ Html.Attributes.type_ "range"
+            , Html.Attributes.min "0"
+            , Html.Attributes.value (String.fromInt additionalAgents)
+            ]
+            []
+        ]
+
+
+dataList : Html a
+dataList =
     let
         (AgentPool pool) =
             results
@@ -144,8 +179,6 @@ main =
         agents =
             List.NonEmpty.toList pool
     in
-    Html.section []
-        [ Html.ul [] <|
-            List.map (\agent -> Html.li [] [ Html.text <| String.fromInt <| durationToSeconds <| agentTotalTime agent ])
-                agents
-        ]
+    Html.ul [] <|
+        List.map (\agent -> Html.li [] [ Html.text <| String.fromInt <| durationToSeconds <| agentTotalTime agent ])
+            agents
