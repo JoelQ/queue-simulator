@@ -102,12 +102,16 @@ type Queue
 
 
 type alias Model =
-    { additionalAgents : Int }
+    { additionalAgents : Int
+    , verifies : Int
+    }
 
 
 initialModel : Model
 initialModel =
-    { additionalAgents = 1 }
+    { additionalAgents = 1
+    , verifies = 2
+    }
 
 
 firstAgent : Agent
@@ -130,21 +134,25 @@ agentPool additionalAgents =
         )
 
 
-buildQueue : Queue
-buildQueue =
-    Queue
-        [ Build (VerifyId 1) (Duration 5)
-        , Build (VerifyId 1) (Duration 3)
-        , Build (VerifyId 1) (Duration 7)
-        , Build (VerifyId 2) (Duration 5)
-        , Build (VerifyId 2) (Duration 3)
-        , Build (VerifyId 2) (Duration 7)
-        ]
+verify : VerifyId -> List Build
+verify id =
+    [ Build id (Duration 5)
+    , Build id (Duration 3)
+    , Build id (Duration 7)
+    ]
 
 
-results : Int -> AgentPool
-results additionalAgents =
-    processQueue buildQueue (agentPool additionalAgents)
+buildQueue : Int -> Queue
+buildQueue verifies =
+    List.range 1 verifies
+        |> List.map (\n -> verify (VerifyId n))
+        |> List.concat
+        |> Queue
+
+
+results : Model -> AgentPool
+results { verifies, additionalAgents } =
+    processQueue (buildQueue verifies) (agentPool additionalAgents)
 
 
 main : Program Flags Model Msg
@@ -162,6 +170,7 @@ type alias Flags =
 
 type Msg
     = AgentCountChanged Int
+    | VerifyCountChanged Int
 
 
 update : Msg -> Model -> Model
@@ -170,27 +179,43 @@ update msg model =
         AgentCountChanged newAdditionalAgents ->
             { model | additionalAgents = newAdditionalAgents }
 
+        VerifyCountChanged newVerifies ->
+            { model | verifies = newVerifies }
+
 
 view : Model -> Html Msg
 view model =
     Html.section []
-        [ controls model.additionalAgents
-        , dataList model.additionalAgents
+        [ controls model
+        , dataList model
         ]
 
 
-controls : Int -> Html Msg
-controls additionalAgents =
-    Html.fieldset []
-        [ Html.legend [] [ Html.text "Agents" ]
-        , Html.span [] [ Html.text <| String.fromInt (additionalAgents + 1) ]
-        , Html.input
-            [ Html.Attributes.type_ "range"
-            , Html.Attributes.min "0"
-            , Html.Attributes.value (String.fromInt additionalAgents)
-            , onIntInput AgentCountChanged
+controls : Model -> Html Msg
+controls { verifies, additionalAgents } =
+    Html.section []
+        [ Html.fieldset []
+            [ Html.legend [] [ Html.text "Agents" ]
+            , Html.span [] [ Html.text <| String.fromInt (additionalAgents + 1) ]
+            , Html.input
+                [ Html.Attributes.type_ "range"
+                , Html.Attributes.min "0"
+                , Html.Attributes.value (String.fromInt additionalAgents)
+                , onIntInput AgentCountChanged
+                ]
+                []
             ]
-            []
+        , Html.fieldset []
+            [ Html.legend [] [ Html.text "Verifies" ]
+            , Html.span [] [ Html.text <| String.fromInt verifies ]
+            , Html.input
+                [ Html.Attributes.type_ "range"
+                , Html.Attributes.min "0"
+                , Html.Attributes.value (String.fromInt verifies)
+                , onIntInput VerifyCountChanged
+                ]
+                []
+            ]
         ]
 
 
@@ -205,11 +230,11 @@ intTarget =
         |> Decode.andThen (Json.Decode.Extra.fromMaybe "not an int" << String.toInt)
 
 
-dataList : Int -> Html a
-dataList additionalAgents =
+dataList : Model -> Html a
+dataList model =
     let
         (AgentPool pool) =
-            results additionalAgents
+            results model
 
         agents =
             List.NonEmpty.toList pool
