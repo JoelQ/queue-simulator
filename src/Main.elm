@@ -197,26 +197,25 @@ controls { verifies, additionalAgents } =
         [ Html.fieldset []
             [ Html.legend [] [ Html.text "Agents" ]
             , Html.span [] [ Html.text <| String.fromInt (additionalAgents + 1) ]
-            , Html.input
-                [ Html.Attributes.type_ "range"
-                , Html.Attributes.min "0"
-                , Html.Attributes.value (String.fromInt additionalAgents)
-                , onIntInput AgentCountChanged
-                ]
-                []
+            , range AgentCountChanged additionalAgents
             ]
         , Html.fieldset []
             [ Html.legend [] [ Html.text "Verifies" ]
             , Html.span [] [ Html.text <| String.fromInt verifies ]
-            , Html.input
-                [ Html.Attributes.type_ "range"
-                , Html.Attributes.min "0"
-                , Html.Attributes.value (String.fromInt verifies)
-                , onIntInput VerifyCountChanged
-                ]
-                []
+            , range VerifyCountChanged verifies
             ]
         ]
+
+
+range : (Int -> msg) -> Int -> Html msg
+range toMsg value =
+    Html.input
+        [ Html.Attributes.type_ "range"
+        , Html.Attributes.min "0"
+        , Html.Attributes.value (String.fromInt value)
+        , onIntInput toMsg
+        ]
+        []
 
 
 onIntInput : (Int -> msg) -> Html.Attribute msg
