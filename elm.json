@@ -11,6 +11,7 @@
             "elm/html": "1.0.0",
             "elm/json": "1.1.3",
             "elm-community/json-extra": "4.3.0",
+            "elm-community/list-extra": "8.5.2",
             "terezka/elm-charts": "3.0.0",
             "turboMaCk/non-empty-list-alias": "1.2.0"
         },

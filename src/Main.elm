@@ -8,11 +8,30 @@ import Html.Attributes
 import Html.Events
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Extra
+import List.Extra
 import List.NonEmpty exposing (NonEmpty)
 
 
 type AgentPool
     = AgentPool (NonEmpty Agent)
+
+
+buildTimesByVerify : AgentPool -> List ProcessedBuild
+buildTimesByVerify (AgentPool pool) =
+    pool
+        |> List.NonEmpty.map agentBuildStats
+        |> List.NonEmpty.toList
+        |> List.concat
+        |> List.Extra.gatherEqualsBy .verifyId
+        |> List.foldr
+            (\( _, builds ) acc ->
+                List.Extra.maximumBy
+                    (durationToSeconds << processedBuildTotalTime)
+                    builds
+                    :: acc
+            )
+            []
+        |> List.filterMap identity
 
 
 processQueue : Queue -> AgentPool -> AgentPool
@@ -61,14 +80,28 @@ type AgentId
 
 agentTotalTime : Agent -> Duration
 agentTotalTime agent =
-    agent.builds
-        |> List.map .duration
-        |> List.foldr durationAdd (Duration 0)
+    buildTotalDuration agent.builds
 
 
 agentProcessBuild : Build -> Agent -> Agent
 agentProcessBuild build agent =
     { agent | builds = agent.builds ++ [ build ] }
+
+
+agentBuildStats : Agent -> List ProcessedBuild
+agentBuildStats agent =
+    List.foldl
+        (\build stats ->
+            queueBuild
+                (List.head stats
+                    |> Maybe.map processedBuildTotalTime
+                    |> Maybe.withDefault (Duration 0)
+                )
+                build
+                :: stats
+        )
+        []
+        agent.builds
 
 
 type alias Build =
@@ -77,8 +110,40 @@ type alias Build =
     }
 
 
+buildTotalDuration : List Build -> Duration
+buildTotalDuration builds =
+    builds
+        |> List.map .duration
+        |> List.foldr durationAdd (Duration 0)
+
+
+type alias ProcessedBuild =
+    { verifyId : VerifyId
+    , queueTime : Duration
+    , buildTime : Duration
+    }
+
+
+queueBuild : Duration -> Build -> ProcessedBuild
+queueBuild queueTime build =
+    { verifyId = build.verifyId
+    , buildTime = build.duration
+    , queueTime = queueTime
+    }
+
+
+processedBuildTotalTime : ProcessedBuild -> Duration
+processedBuildTotalTime { queueTime, buildTime } =
+    durationAdd queueTime buildTime
+
+
 type VerifyId
     = VerifyId Int
+
+
+rawVerifyId : VerifyId -> Int
+rawVerifyId (VerifyId id) =
+    id
 
 
 type Duration
@@ -93,6 +158,11 @@ durationAdd (Duration d1) (Duration d2) =
 durationToSeconds : Duration -> Int
 durationToSeconds (Duration d) =
     d
+
+
+durationToMinutes : Duration -> Int
+durationToMinutes (Duration d) =
+    d // 60
 
 
 type Queue
@@ -138,9 +208,17 @@ agentPool additionalAgents =
 
 verify : VerifyId -> List Build
 verify id =
-    [ Build id (Duration 5)
-    , Build id (Duration 3)
-    , Build id (Duration 7)
+    [ Build id (Duration 630) -- Background Job
+    , Build id (Duration 788) -- CCD
+    , Build id (Duration 445) -- E2E
+
+    -- , Build id (Duration 1500) -- Rails 3
+    -- , Build id (Duration 1500) -- Rails 4
+    , Build id (Duration 720) -- Rails 3 slice 1
+    , Build id (Duration 720) -- Rails 3 slice 2
+    , Build id (Duration 720) -- Rails 4 slice 1
+    , Build id (Duration 720) -- Rails 4 slice 2
+    , Build id (Duration 330) -- Security
     ]
 
 
@@ -195,6 +273,7 @@ view model =
         [ controls model
         , dataList finalPool
         , agentChart finalPool
+        , verifyData finalPool
         ]
 
 
@@ -245,6 +324,25 @@ dataList (AgentPool pool) =
     Html.ul [] <|
         List.map (\agent -> Html.li [] [ Html.text <| String.fromInt <| durationToSeconds <| agentTotalTime agent ])
             agents
+
+
+verifyData : AgentPool -> Html a
+verifyData pool =
+    Html.ul [] <|
+        List.map (\build -> Html.li [] [ Html.text <| verifyDataString build ])
+            (List.sortBy (durationToSeconds << processedBuildTotalTime) <| buildTimesByVerify pool)
+
+
+verifyDataString : ProcessedBuild -> String
+verifyDataString build =
+    "Verify "
+        ++ (String.fromInt <| rawVerifyId build.verifyId)
+        ++ " (queue time: "
+        ++ (String.fromInt <| durationToMinutes build.queueTime)
+        ++ " build time: "
+        ++ (String.fromInt <| durationToMinutes build.buildTime)
+        ++ ") - total "
+        ++ (String.fromInt <| durationToMinutes <| processedBuildTotalTime build)
 
 
 
