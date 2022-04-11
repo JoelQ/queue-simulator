@@ -351,7 +351,10 @@ verifyDataString build =
 
 agentChart : AgentPool -> Html a
 agentChart (AgentPool pool) =
-    Html.section [ Html.Attributes.style "width" "300px" ]
+    Html.section
+        [ Html.Attributes.style "width" "300px"
+        , Html.Attributes.style "height" "300px"
+        ]
         [ Chart.chart []
             [ Chart.bars []
                 [ Chart.bar (toFloat << durationToSeconds << agentTotalTime) [] ]
