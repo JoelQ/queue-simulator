@@ -321,16 +321,22 @@ dataList (AgentPool pool) =
         agents =
             List.NonEmpty.toList pool
     in
-    Html.ul [] <|
-        List.map (\agent -> Html.li [] [ Html.text <| String.fromInt <| durationToSeconds <| agentTotalTime agent ])
-            agents
+    Html.section []
+        [ Html.h2 [] [ Html.text "Work done by agents - raw data" ]
+        , Html.ul [] <|
+            List.map (\agent -> Html.li [] [ Html.text <| String.fromInt <| durationToSeconds <| agentTotalTime agent ])
+                agents
+        ]
 
 
 verifyData : AgentPool -> Html a
 verifyData pool =
-    Html.ul [] <|
-        List.map (\build -> Html.li [] [ Html.text <| verifyDataString build ])
-            (List.sortBy (durationToSeconds << processedBuildTotalTime) <| buildTimesByVerify pool)
+    Html.section []
+        [ Html.h2 [] [ Html.text "Longest build for each verify" ]
+        , Html.ul [] <|
+            List.map (\build -> Html.li [] [ Html.text <| verifyDataString build ])
+                (List.sortBy (durationToSeconds << processedBuildTotalTime) <| buildTimesByVerify pool)
+        ]
 
 
 verifyDataString : ProcessedBuild -> String
@@ -353,9 +359,10 @@ agentChart : AgentPool -> Html a
 agentChart (AgentPool pool) =
     Html.section
         [ Html.Attributes.style "width" "300px"
-        , Html.Attributes.style "height" "300px"
+        , Html.Attributes.style "height" "400px"
         ]
-        [ Chart.chart []
+        [ Html.h2 [] [ Html.text "Work done by agents" ]
+        , Chart.chart []
             [ Chart.bars []
                 [ Chart.bar (toFloat << durationToSeconds << agentTotalTime) [] ]
                 (List.NonEmpty.toList pool)
