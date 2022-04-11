@@ -1,6 +1,8 @@
 module Main exposing (main)
 
 import Browser
+import Chart
+import Chart.Attributes
 import Html exposing (Html)
 import Html.Attributes
 import Html.Events
@@ -185,9 +187,14 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
+    let
+        finalPool =
+            results model
+    in
     Html.section []
         [ controls model
-        , dataList model
+        , dataList finalPool
+        , agentChart finalPool
         ]
 
 
@@ -229,15 +236,27 @@ intTarget =
         |> Decode.andThen (Json.Decode.Extra.fromMaybe "not an int" << String.toInt)
 
 
-dataList : Model -> Html a
-dataList model =
+dataList : AgentPool -> Html a
+dataList (AgentPool pool) =
     let
-        (AgentPool pool) =
-            results model
-
         agents =
             List.NonEmpty.toList pool
     in
     Html.ul [] <|
         List.map (\agent -> Html.li [] [ Html.text <| String.fromInt <| durationToSeconds <| agentTotalTime agent ])
             agents
+
+
+
+-- CHART
+
+
+agentChart : AgentPool -> Html a
+agentChart (AgentPool pool) =
+    Html.section [ Html.Attributes.style "width" "300px" ]
+        [ Chart.chart []
+            [ Chart.bars []
+                [ Chart.bar (toFloat << durationToSeconds << agentTotalTime) [] ]
+                (List.NonEmpty.toList pool)
+            ]
+        ]
