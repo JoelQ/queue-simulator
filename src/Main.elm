@@ -174,14 +174,23 @@ type Queue
 
 
 type alias Model =
+    List Simulation
+
+
+initialModel : Model
+initialModel =
+    [ initialSimulation, initialSimulation ]
+
+
+type alias Simulation =
     { additionalAgents : Int
     , verifies : Int
     , buildType : BuildType
     }
 
 
-initialModel : Model
-initialModel =
+initialSimulation : Simulation
+initialSimulation =
     { additionalAgents = 1
     , verifies = 2
     , buildType = Current
@@ -286,7 +295,7 @@ buildQueue verifies buildType =
         |> Queue
 
 
-results : Model -> AgentPool
+results : Simulation -> AgentPool
 results { verifies, additionalAgents, buildType } =
     processQueue (buildQueue verifies buildType) (agentPool additionalAgents)
 
@@ -305,9 +314,9 @@ type alias Flags =
 
 
 type Msg
-    = AgentCountChanged Int
-    | VerifyCountChanged Int
-    | BuildTypeChosen BuildType
+    = AgentCountChanged Int Int
+    | VerifyCountChanged Int Int
+    | BuildTypeChosen Int BuildType
 
 
 type BuildType
@@ -319,24 +328,35 @@ type BuildType
 update : Msg -> Model -> Model
 update msg model =
     case msg of
-        AgentCountChanged newAdditionalAgents ->
-            { model | additionalAgents = newAdditionalAgents }
+        AgentCountChanged index newAdditionalAgents ->
+            List.Extra.updateAt index
+                (\sim -> { sim | additionalAgents = newAdditionalAgents })
+                model
 
-        VerifyCountChanged newVerifies ->
-            { model | verifies = newVerifies }
+        VerifyCountChanged index newVerifies ->
+            List.Extra.updateAt index
+                (\sim -> { sim | verifies = newVerifies })
+                model
 
-        BuildTypeChosen newBuild ->
-            { model | buildType = newBuild }
+        BuildTypeChosen index newBuild ->
+            List.Extra.updateAt index
+                (\sim -> { sim | buildType = newBuild })
+                model
 
 
 view : Model -> Html Msg
 view model =
+    Html.main_ [] <| List.indexedMap simulationPane model
+
+
+simulationPane : Int -> Simulation -> Html Msg
+simulationPane index sim =
     let
         finalPool =
-            results model
+            results sim
     in
     Html.section []
-        [ controls model
+        [ controls index sim
         , verifyChart finalPool
         , verifyData finalPool
         , agentChart finalPool
@@ -344,28 +364,28 @@ view model =
         ]
 
 
-controls : Model -> Html Msg
-controls { verifies, additionalAgents, buildType } =
+controls : Int -> Simulation -> Html Msg
+controls index { verifies, additionalAgents, buildType } =
     Html.section []
         [ fieldset "Agents"
             [ Html.span [] [ Html.text <| String.fromInt (additionalAgents + 1) ]
-            , range AgentCountChanged additionalAgents
+            , range (AgentCountChanged index) additionalAgents
             ]
         , fieldset "Verifies"
             [ Html.span [] [ Html.text <| String.fromInt verifies ]
-            , range VerifyCountChanged verifies
+            , range (VerifyCountChanged index) verifies
             ]
         , fieldset "Build type"
-            [ buildTypeRadio Current "Current (1 agent, 25 mins)" buildType
-            , buildTypeRadio Optimized "Optimized (1 agent, 15 mins)" buildType
-            , buildTypeRadio TwoAgents "2 agents (12 mins each)" buildType
+            [ buildTypeRadio index Current "Current (1 agent, 25 mins)" buildType
+            , buildTypeRadio index Optimized "Optimized (1 agent, 15 mins)" buildType
+            , buildTypeRadio index TwoAgents "2 agents (12 mins each)" buildType
             ]
         ]
 
 
-buildTypeRadio : BuildType -> String -> BuildType -> Html Msg
-buildTypeRadio buildType labelText selectedBuildType =
-    radio (BuildTypeChosen buildType)
+buildTypeRadio : Int -> BuildType -> String -> BuildType -> Html Msg
+buildTypeRadio index buildType labelText selectedBuildType =
+    radio (BuildTypeChosen index buildType)
         labelText
         (buildType == selectedBuildType)
 
