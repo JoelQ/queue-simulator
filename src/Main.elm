@@ -212,6 +212,8 @@ verify id =
     , Build id (Duration 788) -- CCD
     , Build id (Duration 445) -- E2E
 
+    -- , Build id (Duration 900) -- Rails 3 (optimized)
+    -- , Build id (Duration 900) -- Rails 4 (optimized)
     -- , Build id (Duration 1500) -- Rails 3
     -- , Build id (Duration 1500) -- Rails 4
     , Build id (Duration 720) -- Rails 3 slice 1
@@ -271,9 +273,10 @@ view model =
     in
     Html.section []
         [ controls model
-        , dataList finalPool
-        , agentChart finalPool
         , verifyData finalPool
+        , verifyChart finalPool
+        , agentChart finalPool
+        , dataList finalPool
         ]
 
 
@@ -360,11 +363,43 @@ agentChart (AgentPool pool) =
     Html.section
         [ Html.Attributes.style "width" "300px"
         , Html.Attributes.style "height" "400px"
+        , Html.Attributes.style "padding-left" "50px"
         ]
         [ Html.h2 [] [ Html.text "Work done by agents" ]
         , Chart.chart []
             [ Chart.bars []
-                [ Chart.bar (toFloat << durationToSeconds << agentTotalTime) [] ]
+                [ Chart.bar (toFloat << durationToMinutes << agentTotalTime) [] ]
                 (List.NonEmpty.toList pool)
+            , Chart.xTicks []
+            , Chart.xAxis []
+            , Chart.yTicks []
+            , Chart.yAxis []
+            , Chart.yLabels []
+            ]
+        ]
+
+
+verifyChart : AgentPool -> Html a
+verifyChart pool =
+    Html.section
+        [ Html.Attributes.style "width" "300px"
+        , Html.Attributes.style "height" "400px"
+        , Html.Attributes.style "padding-left" "50px"
+        ]
+        [ Html.h2 [] [ Html.text "Verify times" ]
+        , Chart.chart []
+            [ Chart.bars []
+                [ Chart.stacked
+                    [ Chart.bar (toFloat << durationToMinutes << .buildTime) []
+                    , Chart.bar (toFloat << durationToMinutes << .queueTime) []
+                    ]
+                ]
+                (List.sortBy (durationToSeconds << processedBuildTotalTime) <| buildTimesByVerify pool)
+            , Chart.xTicks []
+            , Chart.xAxis []
+            , Chart.yTicks []
+            , Chart.yAxis []
+            , Chart.yLabels []
+            , Chart.xLabels []
             ]
         ]
