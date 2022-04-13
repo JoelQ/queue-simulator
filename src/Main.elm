@@ -179,7 +179,7 @@ type alias Model =
 
 initialModel : Model
 initialModel =
-    [ initialSimulation, initialSimulation ]
+    [ initialSimulation ]
 
 
 type alias Simulation =
@@ -317,6 +317,7 @@ type Msg
     = AgentCountChanged Int Int
     | VerifyCountChanged Int Int
     | BuildTypeChosen Int BuildType
+    | AddSimulation
 
 
 type BuildType
@@ -343,11 +344,28 @@ update msg model =
                 (\sim -> { sim | buildType = newBuild })
                 model
 
+        AddSimulation ->
+            model ++ [ initialSimulation ]
+
 
 view : Model -> Html Msg
 view model =
     Html.main_ [ Html.Attributes.style "display" "flex" ] <|
-        List.indexedMap simulationPane model
+        simulations model
+            ++ [ addSimulationButton ]
+
+
+simulations : List Simulation -> List (Html Msg)
+simulations sims =
+    List.indexedMap simulationPane sims
+
+
+addSimulationButton : Html Msg
+addSimulationButton =
+    Html.section []
+        [ Html.button [ Html.Events.onClick AddSimulation ]
+            [ Html.text "Add Simulation" ]
+        ]
 
 
 simulationPane : Int -> Simulation -> Html Msg
