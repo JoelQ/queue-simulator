@@ -212,33 +212,70 @@ verify : VerifyId -> BuildType -> List Build
 verify id buildType =
     case buildType of
         Current ->
-            [ Build id (Duration 630) -- Background Job
-            , Build id (Duration 788) -- CCD
-            , Build id (Duration 445) -- E2E
-            , Build id (Duration 1500) -- Rails 3
-            , Build id (Duration 1500) -- Rails 4
-            , Build id (Duration 330) -- Security
+            [ backgroundJob id
+            , ccd id
+            , e2e id
+            , railsCurrent id
+            , railsCurrent id
+            , security id
             ]
 
         Optimized ->
-            [ Build id (Duration 630) -- Background Job
-            , Build id (Duration 788) -- CCD
-            , Build id (Duration 445) -- E2E
-            , Build id (Duration 900) -- Rails 3 (optimized)
-            , Build id (Duration 900) -- Rails 4 (optimized)
-            , Build id (Duration 330) -- Security
+            [ backgroundJob id
+            , ccd id
+            , e2e id
+            , railsOptimized id
+            , railsOptimized id
+            , security id
             ]
 
         TwoAgents ->
-            [ Build id (Duration 630) -- Background Job
-            , Build id (Duration 788) -- CCD
-            , Build id (Duration 445) -- E2E
-            , Build id (Duration 720) -- Rails 3 slice 1
-            , Build id (Duration 720) -- Rails 3 slice 2
-            , Build id (Duration 720) -- Rails 4 slice 1
-            , Build id (Duration 720) -- Rails 4 slice 2
-            , Build id (Duration 330) -- Security
+            [ backgroundJob id
+            , ccd id
+            , e2e id
+
+            -- Rails 3 and 4 builds with 2 slices each
+            , railsSlice id
+            , railsSlice id
+            , railsSlice id
+            , railsSlice id
+            , security id
             ]
+
+
+backgroundJob : VerifyId -> Build
+backgroundJob id =
+    Build id (Duration 630)
+
+
+ccd : VerifyId -> Build
+ccd id =
+    Build id (Duration 788)
+
+
+e2e : VerifyId -> Build
+e2e id =
+    Build id (Duration 445)
+
+
+railsCurrent : VerifyId -> Build
+railsCurrent id =
+    Build id (Duration 1500)
+
+
+railsOptimized : VerifyId -> Build
+railsOptimized id =
+    Build id (Duration 900)
+
+
+railsSlice : VerifyId -> Build
+railsSlice id =
+    Build id (Duration 720)
+
+
+security : VerifyId -> Build
+security id =
+    Build id (Duration 330)
 
 
 buildQueue : Int -> BuildType -> Queue
