@@ -197,6 +197,15 @@ initialSimulation =
     }
 
 
+longestVerify : List Simulation -> Duration
+longestVerify sims =
+    sims
+        |> List.concatMap (buildTimesByVerify << results)
+        |> List.map processedBuildTotalTime
+        |> List.Extra.maximumBy durationToSeconds
+        |> Maybe.withDefault (Duration 0)
+
+
 firstAgent : Agent
 firstAgent =
     Agent (AgentId 1) []
@@ -357,7 +366,7 @@ view model =
 
 simulations : List Simulation -> List (Html Msg)
 simulations sims =
-    List.indexedMap simulationPane sims
+    List.indexedMap (simulationPane (longestVerify sims)) sims
 
 
 addSimulationButton : Html Msg
@@ -368,15 +377,15 @@ addSimulationButton =
         ]
 
 
-simulationPane : Int -> Simulation -> Html Msg
-simulationPane index sim =
+simulationPane : Duration -> Int -> Simulation -> Html Msg
+simulationPane maxVerify index sim =
     let
         finalPool =
             results sim
     in
     Html.section []
         [ controls index sim
-        , verifyChart finalPool
+        , verifyChart maxVerify finalPool
         , verifyData finalPool
         , agentChart finalPool
         , dataList finalPool
@@ -513,15 +522,19 @@ agentChart (AgentPool pool) =
         ]
 
 
-verifyChart : AgentPool -> Html a
-verifyChart pool =
+verifyChart : Duration -> AgentPool -> Html a
+verifyChart maxVerify pool =
     Html.section
         [ Html.Attributes.style "width" "300px"
         , Html.Attributes.style "height" "400px"
         , Html.Attributes.style "padding-left" "50px"
         ]
         [ Html.h2 [] [ Html.text "Verify times" ]
-        , Chart.chart []
+        , Chart.chart
+            [ Chart.Attributes.domain
+                [ Chart.Attributes.highest (toFloat <| durationToMinutes maxVerify) Chart.Attributes.exactly
+                ]
+            ]
             [ Chart.bars []
                 [ Chart.stacked
                     [ Chart.bar (toFloat << durationToMinutes << .buildTime) []
