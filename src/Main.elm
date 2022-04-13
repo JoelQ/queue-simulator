@@ -176,6 +176,7 @@ type Queue
 type alias Model =
     { additionalAgents : Int
     , verifies : Int
+    , buildType : BuildType
     }
 
 
@@ -183,6 +184,7 @@ initialModel : Model
 initialModel =
     { additionalAgents = 1
     , verifies = 2
+    , buildType = Current
     }
 
 
@@ -206,35 +208,50 @@ agentPool additionalAgents =
         )
 
 
-verify : VerifyId -> List Build
-verify id =
-    [ Build id (Duration 630) -- Background Job
-    , Build id (Duration 788) -- CCD
-    , Build id (Duration 445) -- E2E
+verify : VerifyId -> BuildType -> List Build
+verify id buildType =
+    case buildType of
+        Current ->
+            [ Build id (Duration 630) -- Background Job
+            , Build id (Duration 788) -- CCD
+            , Build id (Duration 445) -- E2E
+            , Build id (Duration 1500) -- Rails 3
+            , Build id (Duration 1500) -- Rails 4
+            , Build id (Duration 330) -- Security
+            ]
 
-    -- , Build id (Duration 900) -- Rails 3 (optimized)
-    -- , Build id (Duration 900) -- Rails 4 (optimized)
-    -- , Build id (Duration 1500) -- Rails 3
-    -- , Build id (Duration 1500) -- Rails 4
-    , Build id (Duration 720) -- Rails 3 slice 1
-    , Build id (Duration 720) -- Rails 3 slice 2
-    , Build id (Duration 720) -- Rails 4 slice 1
-    , Build id (Duration 720) -- Rails 4 slice 2
-    , Build id (Duration 330) -- Security
-    ]
+        Optimized ->
+            [ Build id (Duration 630) -- Background Job
+            , Build id (Duration 788) -- CCD
+            , Build id (Duration 445) -- E2E
+            , Build id (Duration 900) -- Rails 3 (optimized)
+            , Build id (Duration 900) -- Rails 4 (optimized)
+            , Build id (Duration 330) -- Security
+            ]
+
+        TwoAgents ->
+            [ Build id (Duration 630) -- Background Job
+            , Build id (Duration 788) -- CCD
+            , Build id (Duration 445) -- E2E
+            , Build id (Duration 720) -- Rails 3 slice 1
+            , Build id (Duration 720) -- Rails 3 slice 2
+            , Build id (Duration 720) -- Rails 4 slice 1
+            , Build id (Duration 720) -- Rails 4 slice 2
+            , Build id (Duration 330) -- Security
+            ]
 
 
-buildQueue : Int -> Queue
-buildQueue verifies =
+buildQueue : Int -> BuildType -> Queue
+buildQueue verifies buildType =
     List.range 1 verifies
-        |> List.map (\n -> verify (VerifyId n))
+        |> List.map (\n -> verify (VerifyId n) buildType)
         |> List.concat
         |> Queue
 
 
 results : Model -> AgentPool
-results { verifies, additionalAgents } =
-    processQueue (buildQueue verifies) (agentPool additionalAgents)
+results { verifies, additionalAgents, buildType } =
+    processQueue (buildQueue verifies buildType) (agentPool additionalAgents)
 
 
 main : Program Flags Model Msg
@@ -253,6 +270,13 @@ type alias Flags =
 type Msg
     = AgentCountChanged Int
     | VerifyCountChanged Int
+    | BuildTypeChosen BuildType
+
+
+type BuildType
+    = Current
+    | Optimized
+    | TwoAgents
 
 
 update : Msg -> Model -> Model
@@ -263,6 +287,9 @@ update msg model =
 
         VerifyCountChanged newVerifies ->
             { model | verifies = newVerifies }
+
+        BuildTypeChosen newBuild ->
+            { model | buildType = newBuild }
 
 
 view : Model -> Html Msg
@@ -281,7 +308,7 @@ view model =
 
 
 controls : Model -> Html Msg
-controls { verifies, additionalAgents } =
+controls { verifies, additionalAgents, buildType } =
     Html.section []
         [ fieldset "Agents"
             [ Html.span [] [ Html.text <| String.fromInt (additionalAgents + 1) ]
@@ -290,6 +317,33 @@ controls { verifies, additionalAgents } =
         , fieldset "Verifies"
             [ Html.span [] [ Html.text <| String.fromInt verifies ]
             , range VerifyCountChanged verifies
+            ]
+        , fieldset "Build type"
+            [ buildTypeRadio Current "Current (1 agent, 25 mins)" buildType
+            , buildTypeRadio Optimized "Optimized (1 agent, 15 mins)" buildType
+            , buildTypeRadio TwoAgents "2 agents (12 mins each)" buildType
+            ]
+        ]
+
+
+buildTypeRadio : BuildType -> String -> BuildType -> Html Msg
+buildTypeRadio buildType labelText selectedBuildType =
+    radio (BuildTypeChosen buildType)
+        labelText
+        (buildType == selectedBuildType)
+
+
+radio : msg -> String -> Bool -> Html msg
+radio msg labelText isSelected =
+    Html.div []
+        [ Html.label []
+            [ Html.input
+                [ Html.Attributes.type_ "radio"
+                , Html.Events.onCheck (\_ -> msg)
+                , Html.Attributes.checked isSelected
+                ]
+                []
+            , Html.text labelText
             ]
         ]
 
