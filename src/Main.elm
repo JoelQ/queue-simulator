@@ -283,17 +283,21 @@ view model =
 controls : Model -> Html Msg
 controls { verifies, additionalAgents } =
     Html.section []
-        [ Html.fieldset []
-            [ Html.legend [] [ Html.text "Agents" ]
-            , Html.span [] [ Html.text <| String.fromInt (additionalAgents + 1) ]
+        [ fieldset "Agents"
+            [ Html.span [] [ Html.text <| String.fromInt (additionalAgents + 1) ]
             , range AgentCountChanged additionalAgents
             ]
-        , Html.fieldset []
-            [ Html.legend [] [ Html.text "Verifies" ]
-            , Html.span [] [ Html.text <| String.fromInt verifies ]
+        , fieldset "Verifies"
+            [ Html.span [] [ Html.text <| String.fromInt verifies ]
             , range VerifyCountChanged verifies
             ]
         ]
+
+
+fieldset : String -> List (Html msg) -> Html msg
+fieldset legend children =
+    Html.fieldset []
+        (Html.legend [] [ Html.text legend ] :: children)
 
 
 range : (Int -> msg) -> Int -> Html msg
