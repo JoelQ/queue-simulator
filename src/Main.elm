@@ -300,8 +300,8 @@ view model =
     in
     Html.section []
         [ controls model
-        , verifyData finalPool
         , verifyChart finalPool
+        , verifyData finalPool
         , agentChart finalPool
         , dataList finalPool
         ]
