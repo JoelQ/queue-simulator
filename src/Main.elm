@@ -346,7 +346,8 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    Html.main_ [] <| List.indexedMap simulationPane model
+    Html.main_ [ Html.Attributes.style "display" "flex" ] <|
+        List.indexedMap simulationPane model
 
 
 simulationPane : Int -> Simulation -> Html Msg
